@@ -3,7 +3,940 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <title>Real-Time Visitor Analytics Dashboard</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(45deg, #3b4371, #5a67d8);
+        color: white;
+        padding: 30px;
+        text-align: center;
+        position: relative;
+      }
+
+      .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .connection-status {
+        position: absolute;
+        top: 20px;
+        right: 30px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+      }
+
+      .status-connected {
+        background: #48bb78;
+      }
+      .status-connecting {
+        background: #ed8936;
+      }
+      .status-disconnected {
+        background: #f56565;
+      }
+
+      @keyframes pulse {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        padding: 30px;
+      }
+
+      .card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        border-left: 4px solid #5a67d8;
+        transition: transform 0.3s ease;
+      }
+
+      .card:hover {
+        transform: translateY(-5px);
+      }
+
+      .card h3 {
+        color: #2d3748;
+        margin-bottom: 15px;
+        font-size: 1.2em;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .stat-large {
+        font-size: 2.5em;
+        font-weight: bold;
+        color: #5a67d8;
+        text-align: center;
+        margin: 15px 0;
+      }
+
+      .event-feed {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .event-item {
+        padding: 10px 15px;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 0.9em;
+        transition: background 0.3s ease;
+      }
+
+      .event-item:hover {
+        background: #edf2f7;
+      }
+
+      .event-item:last-child {
+        border-bottom: none;
+      }
+
+      .event-time {
+        color: #718096;
+        font-size: 0.8em;
+        float: right;
+      }
+
+      .event-details {
+        color: #2d3748;
+        margin-top: 5px;
+      }
+
+      .sessions-list {
+        max-height: 250px;
+        overflow-y: auto;
+      }
+
+      .session-item {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .session-item:hover {
+        background: #edf2f7;
+        border-color: #5a67d8;
+      }
+
+      .session-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .session-id {
+        font-weight: bold;
+        color: #5a67d8;
+      }
+
+      .session-country {
+        background: #5a67d8;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.7em;
+      }
+
+      .session-journey {
+        font-size: 0.85em;
+        color: #718096;
+      }
+
+      .controls {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: all 0.3s ease;
+      }
+
+      .btn-primary {
+        background: #5a67d8;
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: #4c51bf;
+      }
+
+      .btn-secondary {
+        background: #edf2f7;
+        color: #4a5568;
+      }
+
+      .btn-secondary:hover {
+        background: #e2e8f0;
+      }
+
+      .filter-input {
+        padding: 8px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 5px;
+        font-size: 0.9em;
+      }
+
+      .alert {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 8px;
+        color: white;
+        font-weight: bold;
+        z-index: 1000;
+        transform: translateX(400px);
+        transition: transform 0.3s ease;
+      }
+
+      .alert.show {
+        transform: translateX(0);
+      }
+
+      .alert-info {
+        background: #3182ce;
+      }
+      .alert-warning {
+        background: #d69e2e;
+      }
+      .alert-milestone {
+        background: #38a169;
+      }
+
+      .mini-chart {
+        height: 100px;
+        background: #f8fafc;
+        border-radius: 8px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .chart-bar {
+        position: absolute;
+        bottom: 0;
+        background: linear-gradient(to top, #5a67d8, #9f7aea);
+        width: 8px;
+        margin: 0 1px;
+        border-radius: 4px 4px 0 0;
+        transition: height 0.5s ease;
+      }
+
+      .page-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+      }
+
+      .page-stat {
+        background: #f8fafc;
+        padding: 10px;
+        border-radius: 8px;
+        text-align: center;
+        border-left: 3px solid #5a67d8;
+      }
+
+      .page-stat-name {
+        font-size: 0.8em;
+        color: #718096;
+        margin-bottom: 5px;
+      }
+
+      .page-stat-count {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #2d3748;
+      }
+
+      @media (max-width: 768px) {
+        .dashboard-grid {
+          grid-template-columns: 1fr;
+          padding: 15px;
+        }
+
+        .header {
+          padding: 20px 15px;
+        }
+
+        .header h1 {
+          font-size: 1.8em;
+        }
+
+        .connection-status {
+          position: static;
+          justify-content: center;
+          margin-top: 10px;
+        }
+      }
+    </style>
   </head>
-  <body></body>
+  <body>
+    <div class="container">
+      <header class="header">
+        <div class="connection-status">
+          <div
+            id="connectionIndicator"
+            class="status-indicator status-connecting"
+          ></div>
+          <span id="connectionText">Connecting...</span>
+          <span id="dashboardCount" style="margin-left: 15px"
+            >Dashboards: 0</span
+          >
+        </div>
+        <h1>🔍 Real-Time Visitor Analytics</h1>
+        <p>Live visitor tracking and analytics dashboard</p>
+      </header>
+
+      <div class="dashboard-grid">
+        <!-- Active Visitors Card -->
+        <div class="card">
+          <h3>👥 Active Visitors</h3>
+          <div id="activeVisitors" class="stat-large">0</div>
+          <p style="text-align: center; color: #718096">Currently browsing</p>
+        </div>
+
+        <!-- Total Today Card -->
+        <div class="card">
+          <h3>📊 Total Today</h3>
+          <div id="totalToday" class="stat-large">0</div>
+          <p style="text-align: center; color: #718096">Unique visitors</p>
+        </div>
+
+        <!-- Page Views Chart -->
+        <div class="card">
+          <h3>📈 Activity Chart (Last 10 min)</h3>
+          <div id="miniChart" class="mini-chart"></div>
+        </div>
+
+        <!-- Controls -->
+        <div class="card">
+          <h3>🎛️ Controls</h3>
+          <div class="controls">
+            <select id="countryFilter" class="filter-input">
+              <option value="">All Countries</option>
+            </select>
+            <select id="pageFilter" class="filter-input">
+              <option value="">All Pages</option>
+            </select>
+            <button id="applyFilter" class="btn btn-primary">
+              Apply Filter
+            </button>
+            <button id="clearStats" class="btn btn-secondary">
+              Clear Stats
+            </button>
+          </div>
+        </div>
+
+        <!-- Live Event Feed -->
+        <div class="card" style="grid-column: span 2">
+          <h3>📡 Live Event Feed</h3>
+          <div id="eventFeed" class="event-feed">
+            <div class="event-item">
+              <div style="text-align: center; color: #718096; padding: 20px">
+                Waiting for visitor events...
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Sessions -->
+        <div class="card" style="grid-column: span 2">
+          <h3>🏃 Active Sessions</h3>
+          <div id="sessionsList" class="sessions-list">
+            <div style="text-align: center; color: #718096; padding: 20px">
+              No active sessions
+            </div>
+          </div>
+        </div>
+
+        <!-- Page Statistics -->
+        <div class="card" style="grid-column: span 2">
+          <h3>📄 Popular Pages</h3>
+          <div id="pageStats" class="page-stats">
+            <div
+              style="
+                text-align: center;
+                color: #718096;
+                padding: 20px;
+                grid-column: span 2;
+              "
+            >
+              No page data available
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert Container -->
+    <div id="alertContainer"></div>
+
+    <script>
+      class AnalyticsDashboard {
+        constructor() {
+          this.ws = null;
+          this.reconnectAttempts = 0;
+          this.maxReconnectAttempts = 5;
+          this.chartData = new Array(10).fill(0);
+          this.init();
+        }
+
+        init() {
+          this.connectWebSocket();
+          this.setupEventListeners();
+          this.updateChart();
+        }
+
+        connectWebSocket() {
+          const protocol =
+            window.location.protocol === "https:" ? "wss:" : "ws:";
+          const wsUrl = `${protocol}//${window.location.host}`;
+
+          try {
+            this.ws = new WebSocket(wsUrl);
+            this.setupWebSocketHandlers();
+          } catch (error) {
+            console.error("WebSocket connection failed:", error);
+            this.updateConnectionStatus("disconnected");
+          }
+        }
+
+        setupWebSocketHandlers() {
+          this.ws.onopen = () => {
+            console.log("WebSocket connected");
+            this.updateConnectionStatus("connected");
+            this.reconnectAttempts = 0;
+          };
+
+          this.ws.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              this.handleWebSocketMessage(data);
+            } catch (error) {
+              console.error("Error parsing WebSocket message:", error);
+            }
+          };
+
+          this.ws.onclose = () => {
+            console.log("WebSocket disconnected");
+            this.updateConnectionStatus("disconnected");
+            this.attemptReconnect();
+          };
+
+          this.ws.onerror = (error) => {
+            console.error("WebSocket error:", error);
+            this.updateConnectionStatus("disconnected");
+          };
+        }
+
+        handleWebSocketMessage(data) {
+          switch (data.type) {
+            case "initial_data":
+              this.updateStats(data.data.stats);
+              this.updateSessions(data.data.sessions);
+              this.updateDashboardCount(data.data.totalDashboards);
+              break;
+
+            case "visitor_update":
+              this.addEventToFeed(data.data.event);
+              this.updateStats(data.data.stats);
+              this.playNotificationSound();
+              this.updateChartWithNewVisitor();
+              break;
+
+            case "user_connected":
+              this.updateDashboardCount(data.data.totalDashboards);
+              this.showNotification(
+                `New dashboard connected! Total: ${data.data.totalDashboards}`,
+                "info"
+              );
+              break;
+
+            case "user_disconnected":
+              this.updateDashboardCount(data.data.totalDashboards);
+              break;
+
+            case "session_activity":
+              this.updateSessionActivity(data.data);
+              break;
+
+            case "alert":
+              this.showAlert(data.data);
+              break;
+
+            case "detailed_stats":
+              this.updateFilteredResults(data.data);
+              break;
+          }
+        }
+
+        updateConnectionStatus(status) {
+          const indicator = document.getElementById("connectionIndicator");
+          const text = document.getElementById("connectionText");
+
+          indicator.className = `status-indicator status-${status}`;
+
+          switch (status) {
+            case "connected":
+              text.textContent = "Connected";
+              break;
+            case "connecting":
+              text.textContent = "Connecting...";
+              break;
+            case "disconnected":
+              text.textContent = "Disconnected";
+              break;
+          }
+        }
+
+        updateStats(stats) {
+          document.getElementById("activeVisitors").textContent =
+            stats.totalActive || 0;
+          document.getElementById("totalToday").textContent =
+            stats.totalToday || 0;
+
+          if (stats.pagesVisited) {
+            this.updatePageStats(stats.pagesVisited);
+          }
+
+          if (stats.countries) {
+            this.updateCountryFilter(stats.countries);
+          }
+        }
+
+        updatePageStats(pagesVisited) {
+          const pageStats = document.getElementById("pageStats");
+
+          if (Object.keys(pagesVisited).length === 0) {
+            pageStats.innerHTML =
+              '<div style="text-align: center; color: #718096; padding: 20px; grid-column: span 2;">No page data available</div>';
+            return;
+          }
+
+          pageStats.innerHTML = "";
+          Object.entries(pagesVisited)
+            .sort(([, a], [, b]) => b - a)
+            .forEach(([page, count]) => {
+              const statDiv = document.createElement("div");
+              statDiv.className = "page-stat";
+              statDiv.innerHTML = `
+                            <div class="page-stat-name">${page}</div>
+                            <div class="page-stat-count">${count}</div>
+                        `;
+              pageStats.appendChild(statDiv);
+            });
+        }
+
+        updateCountryFilter(countries) {
+          const countryFilter = document.getElementById("countryFilter");
+          const currentValue = countryFilter.value;
+
+          // Keep existing options, add new ones
+          const existingOptions = Array.from(countryFilter.options).map(
+            (opt) => opt.value
+          );
+
+          Object.keys(countries).forEach((country) => {
+            if (country && !existingOptions.includes(country)) {
+              const option = document.createElement("option");
+              option.value = country;
+              option.textContent = country;
+              countryFilter.appendChild(option);
+            }
+          });
+
+          countryFilter.value = currentValue;
+        }
+
+        addEventToFeed(event) {
+          const feed = document.getElementById("eventFeed");
+          const eventDiv = document.createElement("div");
+          eventDiv.className = "event-item";
+
+          const time = new Date(event.timestamp).toLocaleTimeString();
+          const typeIcon = this.getEventIcon(event.type);
+
+          eventDiv.innerHTML = `
+                    <div class="event-time">${time}</div>
+                    <div class="event-details">
+                        ${typeIcon} <strong>${event.sessionId}</strong> - ${
+            event.type
+          } on ${event.page}
+                        ${event.country ? `(${event.country})` : ""}
+                    </div>
+                `;
+
+          // Add to top of feed
+          if (feed.firstChild) {
+            feed.insertBefore(eventDiv, feed.firstChild);
+          } else {
+            feed.appendChild(eventDiv);
+          }
+
+          // Keep only last 50 events
+          while (feed.children.length > 50) {
+            feed.removeChild(feed.lastChild);
+          }
+        }
+
+        getEventIcon(type) {
+          switch (type) {
+            case "pageview":
+              return "👁️";
+            case "click":
+              return "🖱️";
+            case "session_end":
+              return "🚪";
+            default:
+              return "📄";
+          }
+        }
+
+        updateSessions(sessions) {
+          const sessionsList = document.getElementById("sessionsList");
+
+          if (!sessions || sessions.length === 0) {
+            sessionsList.innerHTML =
+              '<div style="text-align: center; color: #718096; padding: 20px;">No active sessions</div>';
+            return;
+          }
+
+          sessionsList.innerHTML = "";
+          sessions.forEach((session) => {
+            const sessionDiv = document.createElement("div");
+            sessionDiv.className = "session-item";
+            sessionDiv.onclick = () => this.showSessionDetails(session);
+
+            const duration = Math.floor(
+              (new Date() - new Date(session.startTime)) / 1000
+            );
+
+            sessionDiv.innerHTML = `
+                        <div class="session-header">
+                            <span class="session-id">${session.sessionId}</span>
+                            <span class="session-country">${
+                              session.country || "Unknown"
+                            }</span>
+                        </div>
+                        <div class="session-journey">
+                            📍 Current: ${session.currentPage} | 
+                            ⏱️ Duration: ${duration}s | 
+                            🛤️ Journey: ${session.journey.join(" → ")}
+                        </div>
+                    `;
+
+            sessionsList.appendChild(sessionDiv);
+          });
+        }
+
+        updateSessionActivity(sessionData) {
+          // Find and update specific session in the list
+          const sessions = document.querySelectorAll(".session-item");
+          sessions.forEach((sessionDiv) => {
+            const sessionId =
+              sessionDiv.querySelector(".session-id").textContent;
+            if (sessionId === sessionData.sessionId) {
+              const journeyDiv = sessionDiv.querySelector(".session-journey");
+              journeyDiv.innerHTML = `
+                            📍 Current: ${sessionData.currentPage} | 
+                            ⏱️ Duration: ${sessionData.duration}s | 
+                            🛤️ Journey: ${sessionData.journey.join(" → ")}
+                        `;
+            }
+          });
+        }
+
+        showSessionDetails(session) {
+          const details = `
+Session Details:
+- ID: ${session.sessionId}
+- Country: ${session.country || "Unknown"}
+- Start Time: ${new Date(session.startTime).toLocaleString()}
+- Current Page: ${session.currentPage}
+- Pages Visited: ${session.journey.length}
+- Journey: ${session.journey.join(" → ")}
+- Metadata: ${JSON.stringify(session.metadata || {}, null, 2)}
+                `;
+          alert(details);
+        }
+
+        updateDashboardCount(count) {
+          document.getElementById(
+            "dashboardCount"
+          ).textContent = `Dashboards: ${count}`;
+        }
+
+        updateChart() {
+          const chart = document.getElementById("miniChart");
+          chart.innerHTML = "";
+
+          const maxValue = Math.max(...this.chartData, 1);
+
+          this.chartData.forEach((value, index) => {
+            const bar = document.createElement("div");
+            bar.className = "chart-bar";
+            bar.style.height = `${(value / maxValue) * 90}%`;
+            bar.style.left = `${index * 10 + 5}%`;
+            chart.appendChild(bar);
+          });
+
+          // Update chart every minute
+          setTimeout(() => this.updateChart(), 60000);
+        }
+
+        updateChartWithNewVisitor() {
+          // Shift data left and add new visitor count
+          this.chartData.shift();
+          this.chartData.push(
+            (this.chartData[this.chartData.length - 1] || 0) + 1
+          );
+          this.updateChart();
+        }
+
+        showAlert(alertData) {
+          const alertDiv = document.createElement("div");
+          alertDiv.className = `alert alert-${alertData.level}`;
+          alertDiv.innerHTML = `
+                    <strong>${alertData.message}</strong>
+                    ${
+                      alertData.details
+                        ? `<br><small>${JSON.stringify(
+                            alertData.details
+                          )}</small>`
+                        : ""
+                    }
+                `;
+
+          document.getElementById("alertContainer").appendChild(alertDiv);
+
+          // Show alert
+          setTimeout(() => alertDiv.classList.add("show"), 100);
+
+          // Remove after 5 seconds
+          setTimeout(() => {
+            alertDiv.classList.remove("show");
+            setTimeout(() => alertDiv.remove(), 300);
+          }, 5000);
+        }
+
+        showNotification(message, type = "info") {
+          const alertData = {
+            level: type,
+            message: message,
+          };
+          this.showAlert(alertData);
+        }
+
+        playNotificationSound() {
+          // Optional: play a subtle notification sound
+          try {
+            const audio = new Audio(
+              "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+btuWkbBBV+zPDLEA"
+            );
+            audio.volume = 0.1;
+            audio.play().catch(() => {});
+          } catch (e) {
+            // Silent fail for browsers that don't support this
+          }
+        }
+
+        attemptReconnect() {
+          if (this.reconnectAttempts < this.maxReconnectAttempts) {
+            this.reconnectAttempts++;
+            this.updateConnectionStatus("connecting");
+
+            setTimeout(() => {
+              console.log(`Reconnection attempt ${this.reconnectAttempts}`);
+              this.connectWebSocket();
+            }, 2000 * this.reconnectAttempts); // Exponential backoff
+          }
+        }
+
+        setupEventListeners() {
+          // Apply Filter Button
+          document
+            .getElementById("applyFilter")
+            .addEventListener("click", () => {
+              const country = document.getElementById("countryFilter").value;
+              const page = document.getElementById("pageFilter").value;
+
+              this.sendWebSocketMessage({
+                type: "request_detailed_stats",
+                filter: {
+                  ...(country && { country }),
+                  ...(page && { page }),
+                },
+              });
+
+              // Track dashboard action
+              this.sendWebSocketMessage({
+                type: "track_dashboard_action",
+                action: "filter_applied",
+                details: {
+                  filterType: country ? "country" : page ? "page" : "none",
+                  value: country || page || "all",
+                },
+              });
+            });
+
+          // Clear Stats Button
+          document
+            .getElementById("clearStats")
+            .addEventListener("click", () => {
+              if (
+                confirm(
+                  "Are you sure you want to clear all statistics? This action cannot be undone."
+                )
+              ) {
+                // Clear local display
+                document.getElementById("eventFeed").innerHTML =
+                  '<div class="event-item"><div style="text-align: center; color: #718096; padding: 20px;">Statistics cleared. Waiting for new events...</div></div>';
+
+                document.getElementById("sessionsList").innerHTML =
+                  '<div style="text-align: center; color: #718096; padding: 20px;">No active sessions</div>';
+
+                document.getElementById("pageStats").innerHTML =
+                  '<div style="text-align: center; color: #718096; padding: 20px; grid-column: span 2;">No page data available</div>';
+
+                this.chartData = new Array(10).fill(0);
+                this.updateChart();
+
+                this.sendWebSocketMessage({
+                  type: "track_dashboard_action",
+                  action: "stats_cleared",
+                  details: {},
+                });
+              }
+            });
+
+          // Update page filter when new pages are visited
+          this.updatePageFilter();
+        }
+
+        updatePageFilter() {
+          // This will be populated as events come in
+          const pageFilter = document.getElementById("pageFilter");
+          const commonPages = [
+            "/home",
+            "/products",
+            "/about",
+            "/contact",
+            "/dashboard",
+          ];
+
+          commonPages.forEach((page) => {
+            const option = document.createElement("option");
+            option.value = page;
+            option.textContent = page;
+            pageFilter.appendChild(option);
+          });
+        }
+
+        sendWebSocketMessage(message) {
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify(message));
+          } else {
+            console.warn(
+              "WebSocket not connected, cannot send message:",
+              message
+            );
+          }
+        }
+
+        updateFilteredResults(data) {
+          // Update event feed with filtered results
+          const feed = document.getElementById("eventFeed");
+          feed.innerHTML = "";
+
+          if (data.events && data.events.length > 0) {
+            data.events.reverse().forEach((event) => {
+              this.addEventToFeed(event);
+            });
+          } else {
+            feed.innerHTML =
+              '<div class="event-item"><div style="text-align: center; color: #718096; padding: 20px;">No events match the current filter</div></div>';
+          }
+
+          this.showNotification(
+            `Filter applied: ${data.totalFiltered} events found`,
+            "info"
+          );
+        }
+      }
+
+      // Initialize dashboard when page loads
+      document.addEventListener("DOMContentLoaded", () => {
+        window.dashboard = new AnalyticsDashboard();
+      });
+
+      // Handle page visibility changes
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && window.dashboard) {
+          // Page became visible, check connection
+          if (window.dashboard.ws.readyState === WebSocket.CLOSED) {
+            window.dashboard.connectWebSocket();
+          }
+        }
+      });
+    </script>
+  </body>
 </html>
