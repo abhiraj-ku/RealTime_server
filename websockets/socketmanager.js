@@ -16,7 +16,7 @@ const setupWebSocket = (server) => {
       type: "user_connected",
       data: {
         totalDashboards: connectedClients.size,
-        connectedAt: new Date().toISOString,
+        connectedAt: new Date().toISOString(),
       },
     });
 

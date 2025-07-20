@@ -35,10 +35,10 @@ app.post("/api/v1/events", (req, res) => {
   updateSessionData(event);
   updateTodayStats(event);
 
-  broadcast({
-    type: "visitor_update",
+  // Emit updated info to dashboards
+  const broadcastStats = {
+    type: "update_stats",
     data: {
-      event,
       stats: {
         totalActive: analytics.activeSessions.size,
         totalToday: analytics.todayStats.totalVisitors,
@@ -46,7 +46,9 @@ app.post("/api/v1/events", (req, res) => {
         countries: analytics.todayStats.countries,
       },
     },
-  });
+  };
+
+  broadcast(broadcastStats);
   res.json({ success: true, message: "Event recorded" });
 });
 
